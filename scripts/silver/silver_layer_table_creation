@@ -1,15 +1,17 @@
-Silver Layer – Table Creation (DDL)
-📌 Purpose
-This script defines the structure of the Silver Layer tables.
-Although the Silver Layer is generally used for data cleaning, standardization, enrichment, and deriving new columns, the current implementation is a full load operation—meaning the data is truncated and re-inserted from the Bronze Layer without transformation.
+Silver Layer – Table Creation script (DDL)
+
+Purpose  
+This script defines the structure of the Silver Layer tables.  
+Although the Silver Layer is generally used for data cleaning, standardization, enrichment, and deriving new columns, the current implementation is a full load operation—meaning the data is truncated and re-inserted from the Bronze Layer without transformation.  
 
 These tables are organized into two main sources:
 
-crm_* tables: Representing data from the CRM source system.
+crm_* tables: Representing data from the CRM source system.  
+erp_* tables: Representing data from the ERP source system.  
 
-erp_* tables: Representing data from the ERP source system.
+Added a new column was added to each table to track when data was loaded into the Silver Layer.
 
-🧱 DDL Script – Create Silver Tables
+DDL Script – Create Silver Tables
 
 =========================================================================================
 Creating tables from crm bronze schema 
