@@ -12,7 +12,7 @@ erp_* tables: Representing data from the ERP source system.
 🧱 DDL Script – Create Silver Tables
 
 =========================================================================================
-Creating tables from crm source system
+Creating tables from crm bronze schema 
 =========================================================================================
 
 create table silver.crm_cust_info (
@@ -46,7 +46,7 @@ sls_price int
 );
 
 =========================================================================================
-Creating tables from erp source system
+Creating tables from erp bronze schema
 =========================================================================================
 
 create table silver.erp_cust_az12 (
