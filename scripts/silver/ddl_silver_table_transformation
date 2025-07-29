@@ -1,62 +1,42 @@
-Bronze to Silver Transformation Scripts
+==================================================
+Stored Procedure Script: Silver Layer ETL + Validation
+==================================================
 
-This segment of the data warehouse project focuses on **transforming and normalizing raw data** from the Bronze Layer into a structured and refined format in the Silver Layer.
+--------------------------------------------------
+Script Purpose
+--------------------------------------------------
+This script contains two stored procedures:
+1. `silver.load_silver` – performs the ETL (Extract, Transform, Load) process  
+   from the `bronze` layer to the `silver` schema.
+2. `validate_load_procedure` – performs validation checks after the ETL process.
 
-Overview
+--------------------------------------------------
+Actions Performed by load_silver
+--------------------------------------------------
+1. Truncates target tables in the `silver` schema to ensure clean loads.  
+2. Inserts transformed and normalized data from the `bronze` schema.  
+3. Applies standardization rules, filters nulls, and handles duplicates.  
+4. Appends a `dwh_create_date` timestamp to every row loaded.
 
-The goal is to:
-- Clean and standardize raw ingested data
-- Apply consistent naming conventions
-- Add metadata (e.g., `dwh_create_date` timestamp)
-- Prepare data for analytics-ready consumption in the Silver Layer
+--------------------------------------------------
+validate_load_procedure
+--------------------------------------------------
+This procedure validates the load by checking row counts and data consistency  
+between `bronze` and `silver` tables after the ETL completes.
 
-These transformations are performed using stored procedures and modular SQL scripts.
+--------------------------------------------------
+Parameters
+--------------------------------------------------
+Neither stored procedure accepts input parameters or returns result sets.
 
----
+--------------------------------------------------
+Usage Example
+--------------------------------------------------
+```sql
+call silver.load_silver();
+call validate_load_procedure();
 
-##  Contents
-
-### 1. `ddl_bronze_mysql.sql`
-Defines the **Bronze Layer table structure** based on the raw source files.
-
-### 2. `ddl_silver_mysql.sql`
-Defines the **Silver Layer table structure**, designed for efficient querying and downstream consumption.
-
-### 3. `bronze_to_silver_procedure.sql`
-Stored Procedure that:
-- Extracts data from Bronze tables
-- Applies transformations (e.g., trimming, renaming columns, formatting, replacing inconsistencies, normalizing)
-- Loads clean data into the Silver Layer
-
-### 4. `load_validation.sql`
-SQL queries to:
-- Verify row counts after loading
-- Check if all expected tables were populated
-- Confirm that `dwh_create_date` was applied correctly across tables
-
----
-
-Tables Involved
-
-### CRM Data
-- `crm_cust_info`
-- `crm_prd_info`
-- `crm_sales_details`
-
-### ERP Data
-- `erp_cust_az12`
-- `erp_loc_a101`
-- `erp_px_cat_glv2`
-
----
-
-## Timestamping
-
-Each Silver Layer table includes a `dwh_create_date` column that records when the data was last loaded. This helps validate that each table was processed individually during the procedure run.
-
----
-
-  delimiter $$
+delimiter $$
 create procedure silver.load_silver()
 begin
 -- insert into customer info
