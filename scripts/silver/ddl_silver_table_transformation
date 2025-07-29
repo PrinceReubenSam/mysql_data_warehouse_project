@@ -1,0 +1,231 @@
+Bronze to Silver Transformation Scripts
+
+This segment of the data warehouse project focuses on **transforming and normalizing raw data** from the Bronze Layer into a structured and refined format in the Silver Layer.
+
+Overview
+
+The goal is to:
+- Clean and standardize raw ingested data
+- Apply consistent naming conventions
+- Add metadata (e.g., `dwh_create_date` timestamp)
+- Prepare data for analytics-ready consumption in the Silver Layer
+
+These transformations are performed using stored procedures and modular SQL scripts.
+
+---
+
+##  Contents
+
+### 1. `ddl_bronze_mysql.sql`
+Defines the **Bronze Layer table structure** based on the raw source files.
+
+### 2. `ddl_silver_mysql.sql`
+Defines the **Silver Layer table structure**, designed for efficient querying and downstream consumption.
+
+### 3. `bronze_to_silver_procedure.sql`
+Stored Procedure that:
+- Extracts data from Bronze tables
+- Applies transformations (e.g., trimming, renaming columns, formatting, replacing inconsistencies, normalizing)
+- Loads clean data into the Silver Layer
+
+### 4. `load_validation.sql`
+SQL queries to:
+- Verify row counts after loading
+- Check if all expected tables were populated
+- Confirm that `dwh_create_date` was applied correctly across tables
+
+---
+
+Tables Involved
+
+### CRM Data
+- `crm_cust_info`
+- `crm_prd_info`
+- `crm_sales_details`
+
+### ERP Data
+- `erp_cust_az12`
+- `erp_loc_a101`
+- `erp_px_cat_glv2`
+
+---
+
+## Timestamping
+
+Each Silver Layer table includes a `dwh_create_date` column that records when the data was last loaded. This helps validate that each table was processed individually during the procedure run.
+
+---
+
+  delimiter $$
+create procedure silver.load_silver()
+begin
+-- insert into customer info
+		insert into silver.crm_cust_info (
+		  cst_id,cst_key,cst_firstname,cst_lastname,cst_marital_status,cst_gndr,cst_create_date
+		)
+		select
+		  cst_id,
+		  cst_key,
+		  trim(cst_firstname) as cst_firstname,
+		  trim(cst_lastname) as cst_lastname,
+		  case
+			when upper(trim(cst_marital_status)) = 'S' then 'Single'
+			when upper(trim(cst_marital_status)) = 'M' then 'Married'
+			else 'Unknown'
+		  end as cst_marital_status,
+		  case
+			when upper(trim(cst_gndr)) = 'M' then 'Male'
+			when upper(trim(cst_gndr)) = 'F' then 'Female'
+			else 'Unknown'
+		  end as cst_gndr,
+		  cst_create_date
+		from (
+		  select *,
+				 row_number() over (partition by cst_id order by cst_create_date desc) as rn
+		  from bronze.crm_cust_info
+		  where cst_id regexp '^[0-9]+$'
+			and cst_key is not null
+			and trim(cst_firstname) <> ''
+			and trim(cst_lastname) <> ''
+		) as ranked
+		where rn = 1;
+        
+-- insert into product info
+
+		insert into silver.crm_prd_info 
+			(prd_id, cat_id, prd_key, prd_nm, prd_cost, prd_line, prd_start_dt, prd_end_dt)
+		select  
+			prd_id,
+			replace(substring(prd_key, 1, 5), '-', '') as cat_id, -- extraxt category id 
+			substring(prd_key, 7, length(prd_key)) as prd_key,	  -- extraxt prd_cost_key
+			prd_nm,
+			ifnull(prd_cost, 0) as prd_cost,
+			case 
+				when upper(trim(prd_line)) = 'M' then 'Mountain'
+				when upper(trim(prd_line)) = 'R' then 'Road'
+				when upper(trim(prd_line)) = 'S' then 'Other sales'
+				when upper(trim(prd_line)) = 'T' then 'Transportation'
+				else 'null'
+			end as prd_line,
+			prd_start_dt,
+			lead(prd_start_dt) over (partition by prd_key order by prd_start_dt) - interval 1 day as prd_end_dt
+		from bronze.crm_prd_info;
+        
+-- insert into sales details
+
+		insert into silver.crm_sales_details(
+		sls_ord_num,sls_prd_key,sls_cust_id,sls_order_dt,sls_ship_dt,sls_due_dt,sls_sales,sls_quantity,sls_price
+		)
+		select sls_ord_num,
+		sls_prd_key,
+		sls_cust_id,
+		sls_order_dt,
+		sls_ship_dt,
+		sls_due_dt,
+		case when sls_sales is null or sls_sales <=0 or sls_sales != sls_quantity*abs(sls_price)
+			 then sls_quantity * abs(sls_price)
+			 else sls_sales
+		end as sls_sales,
+		sls_quantity,
+		case when sls_price is null or sls_price <= 0
+			 then sls_sales/nullif (sls_quantity,0)
+			 else sls_price
+		end as sls_price
+		from bronze.crm_sales_details;
+        
+-- insert into erp_cust_az12
+
+		insert into silver.erp_cust_az12 (
+		cid, bdate, gen
+		)
+		select
+		case when upper(cid) like 'NAS%' then substring(cid,4, length(cid))  -- remove 'NAS' prefix if present
+			else cid
+		end as cid,
+		case 
+			when bdate> current_date() then null	-- converting dates that are more than current date to null
+			else bdate
+		end as bdate,
+		  case 
+			when upper(trim(gen)) = 'M' then 'Male' -- data normalization and handling of missing values
+			when upper(trim(gen)) = 'F' then 'Female'
+			when trim(gen) = '' then null
+			else gen
+		  end as gen
+		from bronze.erp_cust_az12;
+
+-- insert into erp_loc_a101
+
+		insert into silver.erp_loc_a101(
+		cid,
+		cntry
+		)
+		select 
+			replace(cid, '-', '') as cid, 						-- remove '-' so as to join with other tables
+		case 
+			when trim(cntry) = 'DE' then 'GERMANY'				-- data normalization, handling missing or blank country codes
+			when trim(cntry) = 'US' then 'United States'
+			when trim(cntry) = 'USA' then 'United States'
+			when trim(cntry) = '' 
+			then null
+			else trim(cntry)
+		end as cntry
+		from bronze.erp_loc_a101;
+
+-- insert into erp_px_cat_g1v2
+
+		insert into silver.erp_px_cat_g1v2(
+		id, cat, subcat, maintenance
+		)
+		select 
+		id,
+		cat,
+		subcat,
+		maintenance
+		from bronze.erp_px_cat_g1v2;
+end $$
+delimiter ;
+
+-- vaildate and run the stored procedure silver.load_silver
+
+DELIMITER $$
+
+create procedure validate_load_procedure()
+begin
+  select  
+    'crm_cust_info' as table_name,
+    count(*) as row_count,
+    min(dwh_create_date) as first_load_time,
+    max(dwh_create_date) as last_load_time
+  from silver.crm_cust_info
+
+  union all
+
+  select 'crm_prd_info', count(*), min(dwh_create_date), max(dwh_create_date)
+  from silver.crm_prd_info
+
+  union all
+
+  select 'crm_sales_details', count(*), min(dwh_create_date), max(dwh_create_date)
+  from silver.crm_sales_details
+
+  union all
+
+  select 'erp_cust_az12', count(*), min(dwh_create_date), max(dwh_create_date)
+  from silver.erp_cust_az12
+
+  union all
+
+  select 'erp_loc_a101', count(*), min(dwh_create_date), max(dwh_create_date)
+  from silver.erp_loc_a101
+
+  union all
+
+  select 'erp_px_cat_g1v2', count(*), min(dwh_create_date), max(dwh_create_date)
+  from silver.erp_px_cat_g1v2;
+end $$
+DELIMITER ;
+
+-- immediately call it
+call validate_load_procedure();
+
