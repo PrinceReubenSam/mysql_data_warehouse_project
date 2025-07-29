@@ -1,5 +1,5 @@
 ==================================================
-Stored Procedure Script: Silver Layer ETL + Validation
+Stored Procedure Script: Silver Layer ETL + Deduplication  
 ==================================================
 
 --------------------------------------------------
@@ -8,33 +8,37 @@ Script Purpose
 This script contains two stored procedures:
 1. `silver.load_silver` – performs the ETL (Extract, Transform, Load) process  
    from the `bronze` layer to the `silver` schema.
-2. `validate_load_procedure` – performs validation checks after the ETL process.
+2. `silver.clean_dup_tables` – applies deduplication logic on selected `silver` tables  
+   after the ETL load.
 
 --------------------------------------------------
 Actions Performed by load_silver
 --------------------------------------------------
 1. Truncates target tables in the `silver` schema to ensure clean loads.  
-2. Inserts transformed and normalized data from the `bronze` schema.  
-3. Applies standardization rules, filters nulls, and handles duplicates.  
-4. Appends a `dwh_create_date` timestamp to every row loaded.
+2. Inserts transformed and standardized data from the `bronze` schema.  
+3. Filters out nulls and applies formatting rules.  
+4. Appends a `dwh_create_date` timestamp to each row.
 
 --------------------------------------------------
-validate_load_procedure
+Actions Performed by clean_dup_tables
 --------------------------------------------------
-This procedure validates the load by checking row counts and data consistency  
-between `bronze` and `silver` tables after the ETL completes.
+1. Deduplicates key `silver` tables by creating `_clean` versions:
+   - For `silver.erp_cust_az12`: retains one row per `cid` using `MAX(bdate)` and `MAX(gen)`.
+   - For `silver.erp_loc_a101`: retains one row per `cid` using `MAX(cntry)` and `MAX(dwh_create_date)`.
+2. Drops the original tables.
+3. Renames the `_clean` tables back to the original names.
 
 --------------------------------------------------
 Parameters
 --------------------------------------------------
-Neither stored procedure accepts input parameters or returns result sets.
+Neither procedures accept input parameters nor returns result sets.
 
 --------------------------------------------------
 Usage Example
 --------------------------------------------------
 ```sql
-call silver.load_silver();
-call validate_load_procedure();
+CALL silver.load_silver();
+CALL silver.dedup_tables();
 
 delimiter $$
 create procedure silver.load_silver()
@@ -166,46 +170,32 @@ begin
 end $$
 delimiter ;
 
--- vaildate and run the stored procedure silver.load_silver
+=================================================================
+=================================================================
 
-DELIMITER $$
+delimiter $$
+CREATE PROCEDURE dedup_tables()
+BEGIN
+		CREATE TABLE silver.erp_cust_az12_clean AS
+		SELECT cid, MAX(bdate) AS bdate, MAX(gen) AS gen
+		FROM silver.erp_cust_az12
+		GROUP BY cid;
 
-create procedure validate_load_procedure()
-begin
-  select  
-    'crm_cust_info' as table_name,
-    count(*) as row_count,
-    min(dwh_create_date) as first_load_time,
-    max(dwh_create_date) as last_load_time
-  from silver.crm_cust_info
+		DROP TABLE silver.erp_cust_az12;
 
-  union all
+		RENAME TABLE silver.erp_cust_az12_clean TO silver.erp_cust_az12;
+		-- ==========================================================
+		CREATE TABLE silver.erp_loc_a101_clean AS
+		SELECT cid, MAX(dwh_create_date) AS dwh_create_date, MAX(cntry) AS cntry
+		FROM silver.erp_loc_a101
+		GROUP BY cid;
 
-  select 'crm_prd_info', count(*), min(dwh_create_date), max(dwh_create_date)
-  from silver.crm_prd_info
+		DROP TABLE silver.erp_loc_a101;
 
-  union all
+		RENAME TABLE silver.erp_loc_a101_clean TO silver.erp_loc_a101;
 
-  select 'crm_sales_details', count(*), min(dwh_create_date), max(dwh_create_date)
-  from silver.crm_sales_details
-
-  union all
-
-  select 'erp_cust_az12', count(*), min(dwh_create_date), max(dwh_create_date)
-  from silver.erp_cust_az12
-
-  union all
-
-  select 'erp_loc_a101', count(*), min(dwh_create_date), max(dwh_create_date)
-  from silver.erp_loc_a101
-
-  union all
-
-  select 'erp_px_cat_g1v2', count(*), min(dwh_create_date), max(dwh_create_date)
-  from silver.erp_px_cat_g1v2;
-end $$
+END $$
 DELIMITER ;
 
--- immediately call it
-call validate_load_procedure();
+
 
