@@ -197,5 +197,52 @@ BEGIN
 END $$
 DELIMITER ;
 
+CREATE TABLE silver.crm_prd_info_clean AS
+SELECT 
+  prd_id,
+  MAX(prd_key) AS prd_key,
+  MAX(prd_nm) AS prd_nm,
+  MAX(prd_cost) AS prd_cost,
+  MAX(prd_line) AS prd_line,
+  MAX(prd_start_dt) AS prd_start_dt,
+  MAX(prd_end_dt) AS prd_end_dt,
+  MAX(cat_id) AS cat_id
+FROM silver.crm_prd_info
+GROUP BY prd_id;
+
+DROP TABLE silver.crm_prd_info;
+
+CREATE TABLE silver.erp_px_cat_g1v2_clean AS
+SELECT 
+  id,
+  MAX(cat) AS cat,
+  MAX(subcat) AS subcat,
+  MAX(maintenance) AS maintenance
+FROM silver.erp_px_cat_g1v2
+GROUP BY id;
+
+DROP TABLE silver.erp_px_cat_g1v2;
+
+RENAME TABLE silver.erp_px_cat_g1v2_clean TO silver.erp_px_cat_g1v2;
+
+RENAME TABLE silver.crm_prd_info_clean TO silver.crm_prd_info;
+
+CREATE TABLE silver.crm_prd_info_clean AS
+SELECT 
+  MIN(prd_id) AS prd_id,
+  MAX(prd_key) AS prd_key,
+  MAX(prd_nm) AS prd_nm,
+  MAX(prd_cost) AS prd_cost,
+  MAX(prd_line) AS prd_line,
+  MAX(prd_start_dt) AS prd_start_dt,
+  MAX(prd_end_dt) AS prd_end_dt,
+  cat_id
+FROM silver.crm_prd_info
+GROUP BY cat_id;
+DROP TABLE silver.crm_prd_info;
+
+RENAME TABLE silver.crm_prd_info_clean TO crm_prd_info;
+
+
 
 
