@@ -243,6 +243,25 @@ DROP TABLE silver.crm_prd_info;
 
 RENAME TABLE silver.crm_prd_info_clean TO crm_prd_info;
 
+===============================================================================================================================
+Create view containing row number to join with gold.dim_customers and gold.dim_products tables in the gold layer
+===============================================================================================================================
+
+CREATE VIEW silver.vw_crm_sales_details AS
+SELECT 
+  ROW_NUMBER() OVER (PARTITION BY sls_cust_id ORDER BY sls_order_dt) AS row_id,
+  sls_ord_num,
+  sls_prd_key,
+  sls_cust_id,
+  sls_order_dt,
+  sls_ship_dt,
+  sls_due_dt,
+  sls_sales,
+  sls_quantity,
+  sls_price
+FROM silver.crm_sales_details;
 
 
+UPDATE silver.erp_px_cat_g1v2
+SET id = REPLACE(id, '_', '');
 
