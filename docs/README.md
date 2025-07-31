@@ -12,7 +12,7 @@ It demonstrates end-to-end implementation — from raw data ingestion and transf
 ## Project Overview
 
 **Goal:**  
-Build a modern data warehouse using **SQL Server** that integrates sales data from multiple sources and enables analytics for informed business decision-making.
+Build a modern data warehouse using **MySQL** that integrates sales data from multiple sources and enables analytics for informed business decision-making.
 
 ---
 
@@ -21,7 +21,7 @@ Build a modern data warehouse using **SQL Server** that integrates sales data fr
 **Key Components:**
 
 - **Data Sources:**  
-  Imported datasets from two CSV-based systems: **ERP** and **CRM**.
+- **[Datasets](datasets/):** Access to the project dataset (csv files).
 
 - **Data Cleaning:**  
   Identified and resolved data quality issues to ensure reliable analysis.
@@ -49,6 +49,30 @@ Leverage SQL-based analytics to uncover key insights in:
 These insights empower stakeholders to make **data-driven decisions** and monitor key business metrics effectively.
 
 ---
+## Repository Structure
+```
+data-warehouse-project/
+│
+├── datasets/                           # Raw datasets used for the project (ERP and CRM data)
+│
+├── docs/                               # Project documentation and architecture details
+│   ├── etl.drawio                      # Draw.io file shows all different techniquies and methods of ETL
+│   ├── data_architecture.drawio        # Draw.io file shows the project's architecture
+│   ├── data_catalog.md                 # Catalog of datasets, including field descriptions and metadata
+│   ├── data_flow.drawio                # Draw.io file for the data flow diagram
+│   ├── data_models.drawio              # Draw.io file for data models (star schema)
+│   ├── naming-conventions.md           # Consistent naming guidelines for tables, columns, and files
+│
+├── scripts/                            # SQL scripts for ETL and transformations
+│   ├── bronze/                         # Scripts for extracting and loading raw data
+│   ├── silver/                         # Scripts for cleaning and transforming data
+│   ├── gold/                           # Scripts for creating analytical models
+│
+│
+├── README.md                           # Project overview and instructions
+├── LICENSE                             # License information for the repository
+```
+---
 
 ##  License
 
@@ -59,7 +83,7 @@ Feel free to use or modify it with proper credit.
 
 ##  Let's Connect!
 
-If you find this project helpful or inspiring, feel free to ⭐ the repo or reach out on [LinkedIn](https://www.linkedin.com/in/reuben-samuel-b55b97234/) to connect!
+Please feel free to ⭐ the repo or reach out on [LinkedIn](https://www.linkedin.com/in/reuben-samuel-b55b97234/) to connect!
 
 ## About Me
 
